@@ -4,7 +4,7 @@ import { useNotes } from '../context/NotesContext';
 import { NoteColor } from '../types';
 
 export const Header: React.FC = () => {
-  const { addNote } = useNotes();
+  const { addNote, deleteAllNotes } = useNotes();
   const [darkMode, setDarkMode] = React.useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('darkMode') === 'true' || 
@@ -26,7 +26,11 @@ export const Header: React.FC = () => {
   };
 
   React.useEffect(() => {
-    document.documentElement.classList.toggle('dark', darkMode);
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
     localStorage.setItem('darkMode', darkMode.toString());
   }, [darkMode]);
 
@@ -64,6 +68,14 @@ export const Header: React.FC = () => {
           </div>
           
           <button
+            onClick={() => deleteAllNotes()}
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            title="Delete all notes"
+          >
+            <Trash2 size={20} className="text-red-500" />
+          </button>
+          
+          <button
             onClick={() => setDarkMode(!darkMode)}
             className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
           >
@@ -82,11 +94,6 @@ export const Header: React.FC = () => {
             <span>+</span>
             <kbd className="px-1 py-0.5 bg-white dark:bg-zinc-700 rounded border border-zinc-300 dark:border-zinc-600 text-xs mx-1">N</kbd>
             <span className="ml-2">New Note</span>
-          </div>
-          
-          <div className="flex items-center">
-            <kbd className="px-1 py-0.5 bg-white dark:bg-zinc-700 rounded border border-zinc-300 dark:border-zinc-600 text-xs mx-1">Delete</kbd>
-            <span className="ml-2">Remove Note</span>
           </div>
         </div>
       </div>
