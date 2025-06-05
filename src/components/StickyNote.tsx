@@ -1,209 +1,193 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useDraggable } from '@dnd-kit/core';
-import { X, PaintBucket } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import Draggable from 'react-draggable';
+import { Trash2, Minimize2, Maximize2, Palette } from 'lucide-react';
+import { Note as NoteType, NotePosition, NOTE_COLORS, NOTE_TEXT_COLORS, NoteColor } from '../types';
 import { useNotes } from '../context/NotesContext';
-import { Note, NoteColor } from '../types';
 
-interface StickyNoteProps {
-  note: Note;
+interface NoteProps {
+  note: NoteType;
 }
 
-export const StickyNote: React.FC<StickyNoteProps> = ({ note }) => {
+export const StickyNote: React.FC<NoteProps> = ({ note }) => {
   const { updateNote, deleteNote, bringToFront } = useNotes();
+  const nodeRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
   const [isResizing, setIsResizing] = useState(false);
-  const [showControls, setShowControls] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
-  const noteRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const startResizeRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
-  
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({
-    id: note.id,
-    data: note,
-  });
-
-  // Color classes for the sticky note
-  const colorClasses: Record<NoteColor, string> = {
-    yellow: 'bg-amber-100 border-amber-200',
-    blue: 'bg-blue-100 border-blue-200',
-    green: 'bg-green-100 border-green-200',
-    pink: 'bg-pink-100 border-pink-200',
-    purple: 'bg-purple-100 border-purple-200',
-  };
-
-  // Color options for the color picker
-  const colorOptions: NoteColor[] = ['yellow', 'blue', 'green', 'pink', 'purple'];
-  
-  // Styles for the note position and size
-  const style: React.CSSProperties = {
-    position: 'absolute',
-    left: `${note.position.x}px`,
-    top: `${note.position.y}px`,
-    width: `${note.size.width}px`,
-    height: `${note.size.height}px`,
-    zIndex: note.zIndex,
-    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
-  };
-
-  // Handle text changes
-  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    updateNote(note.id, { content: e.target.value });
-  };
-
-  // Handle deleting a note
-  const handleDelete = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    deleteNote(note.id);
-  };
-
-  // Start resize operation
-  const handleStartResize = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    
-    setIsResizing(true);
-    
-    if (noteRef.current) {
-      startResizeRef.current = {
-        x: e.clientX,
-        y: e.clientY,
-        width: note.size.width,
-        height: note.size.height
-      };
-    }
-    
-    window.addEventListener('mousemove', handleResize);
-    window.addEventListener('mouseup', handleEndResize);
-  };
-
-  // Handle resize operation
-  const handleResize = (e: MouseEvent) => {
-    if (isResizing && startResizeRef.current) {
-      const dx = e.clientX - startResizeRef.current.x;
-      const dy = e.clientY - startResizeRef.current.y;
-      
-      const newWidth = Math.max(150, startResizeRef.current.width + dx);
-      const newHeight = Math.max(150, startResizeRef.current.height + dy);
-      
-      updateNote(note.id, {
-        size: {
-          width: newWidth,
-          height: newHeight
-        }
-      });
-    }
-  };
-
-  // End resize operation
-  const handleEndResize = () => {
-    setIsResizing(false);
-    startResizeRef.current = null;
-    window.removeEventListener('mousemove', handleResize);
-    window.removeEventListener('mouseup', handleEndResize);
-  };
-
-  // Handle color change
-  const handleColorChange = (color: NoteColor) => {
-    updateNote(note.id, { color });
-    setShowColorPicker(false);
-  };
+  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+  const [startSize, setStartSize] = useState({ width: 0, height: 0 });
 
   // Bring note to front when clicked
   const handleNoteClick = () => {
     bringToFront(note.id);
   };
 
-  // Clean up event listeners on unmount
+  // Update content when textarea changes
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    updateNote(note.id, { content: e.target.value });
+  };
+
+  // Track drag position
+  const handleDrag = (_e: any, data: { x: number; y: number }) => {
+    const newPosition: NotePosition = { x: data.x, y: data.y };
+    updateNote(note.id, { position: newPosition });
+  };
+
+  // Start resize
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    setStartPos({ x: e.clientX, y: e.clientY });
+    setStartSize({ width: note.size.width, height: note.size.height });
+  };
+
+  // Handle mouse move for resizing
   useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      
+      e.preventDefault();
+      const dx = e.clientX - startPos.x;
+      const dy = e.clientY - startPos.y;
+      
+      const newWidth = Math.max(150, startSize.width + dx);
+      const newHeight = Math.max(120, startSize.height + dy);
+      
+      updateNote(note.id, { size: { width: newWidth, height: newHeight } });
+    };
+    
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+    
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+    
     return () => {
-      window.removeEventListener('mousemove', handleResize);
-      window.removeEventListener('mouseup', handleEndResize);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, []);
+  }, [isResizing, startPos, startSize, note.id, updateNote]);
 
-  // Handle keyboard events
+  // Set focus to content when note is created
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (document.activeElement === textareaRef.current && e.key === 'Delete') {
-        deleteNote(note.id);
-      }
-    };
+    if (note.content === '' && contentRef.current) {
+      contentRef.current.focus();
+    }
+  }, [note.content]);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [note.id, deleteNote]);
-  
+  const colorClasses = NOTE_COLORS[note.color];
+  const textColorClass = NOTE_TEXT_COLORS[note.color];
+
   return (
-    <div
-      ref={setNodeRef}
-      className={`sticky-note ${colorClasses[note.color]} shadow-md rounded-md border overflow-hidden transition-shadow duration-200 hover:shadow-lg`}
-      style={style}
-      onClick={handleNoteClick}
-      onMouseEnter={() => setShowControls(true)}
-      onMouseLeave={() => {
-        setShowControls(false);
-        setShowColorPicker(false);
-      }}
+    <Draggable
+      nodeRef={nodeRef}
+      handle=".note-handle"
+      defaultPosition={note.position}
+      position={note.position}
+      onDrag={handleDrag}
+      onMouseDown={handleNoteClick}
+      bounds="parent"
     >
-      {/* Note Controls */}
       <div
-        className={`absolute top-0 right-0 p-1 z-10 flex transition-opacity duration-200 ${
-          showControls ? 'opacity-100' : 'opacity-0'
-        }`}
-      >
-        <button
-          className="p-1.5 rounded-full hover:bg-black/10 transition-colors mr-1"
-          onClick={() => setShowColorPicker(!showColorPicker)}
-        >
-          <PaintBucket size={14} className="text-zinc-900" />
-        </button>
-        <button
-          className="p-1.5 rounded-full hover:bg-black/10 transition-colors"
-          onClick={handleDelete}
-        >
-          <X size={14} className="text-zinc-900" />
-        </button>
-      </div>
-
-      {/* Color Picker */}
-      {showColorPicker && (
-        <div className="absolute top-8 right-2 p-2 bg-white rounded-lg shadow-lg z-20 flex flex-col gap-2">
-          {colorOptions.map(color => (
-            <button
-              key={color}
-              className={`w-6 h-6 rounded-full ${colorClasses[color].replace('border-', '')} hover:scale-110 transition-transform`}
-              onClick={() => handleColorChange(color)}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Drag Handle */}
-      <div
-        className="h-6 bg-black/5 cursor-move"
-        {...attributes}
-        {...listeners}
-      ></div>
-
-      {/* Note Content */}
-      <textarea
-        ref={textareaRef}
-        value={note.content}
-        onChange={handleContentChange}
-        className="w-full h-[calc(100%-32px)] p-3 resize-none bg-transparent focus:outline-none text-zinc-900"
-        placeholder="Type your note here..."
-      />
-
-      {/* Resize Handle */}
-      <div
-        className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize"
-        onMouseDown={handleStartResize}
+        ref={nodeRef}
+        className={`absolute ${colorClasses} rounded-md shadow-lg border overflow-hidden transition-shadow hover:shadow-xl`}
         style={{
-          backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.2) 1px, transparent 1px)',
-          backgroundSize: '3px 3px',
+          width: `${note.size.width}px`,
+          height: note.minimized ? '40px' : `${note.size.height}px`,
+          zIndex: note.zIndex,
         }}
-      />
-    </div>
+      >
+        {/* Note header */}
+        <div className={`note-handle h-10 ${colorClasses} border-b flex items-center justify-between p-2 cursor-move`}>
+          <div className="flex space-x-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowColorPicker(!showColorPicker);
+              }}
+              className="p-1 rounded-full hover:bg-black/10 transition-colors"
+              aria-label="Change color"
+            >
+              <Palette size={16} className={textColorClass} />
+            </button>
+          </div>
+          <div className="flex space-x-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                updateNote(note.id, { minimized: !note.minimized });
+              }}
+              className="p-1 rounded-full hover:bg-black/10 transition-colors"
+              aria-label={note.minimized ? "Maximize" : "Minimize"}
+            >
+              {note.minimized ? (
+                <Maximize2 size={16} className={textColorClass} />
+              ) : (
+                <Minimize2 size={16} className={textColorClass} />
+              )}
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteNote(note.id);
+              }}
+              className="p-1 rounded-full hover:bg-black/10 transition-colors"
+              aria-label="Delete note"
+            >
+              <Trash2 size={16} className={textColorClass} />
+            </button>
+          </div>
+        </div>
+
+        {/* Color picker dropdown */}
+        {showColorPicker && !note.minimized && (
+          <div className="absolute top-10 left-0 bg-white shadow-lg rounded-md p-2 z-50 flex flex-wrap gap-2">
+            {Object.keys(NOTE_COLORS).map((color) => (
+              <button
+                key={color}
+                onClick={() => {
+                  updateNote(note.id, { color: color as NoteColor });
+                  setShowColorPicker(false);
+                }}
+                className={`w-6 h-6 rounded-full ${NOTE_COLORS[color as NoteColor]} border hover:scale-110 transition-transform`}
+                aria-label={`Change to ${color}`}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Note content */}
+        {!note.minimized && (
+          <textarea
+            ref={contentRef}
+            value={note.content}
+            onChange={handleContentChange}
+            onClick={handleNoteClick}
+            className={`w-full h-[calc(100%-40px)] p-3 bg-transparent resize-none focus:outline-none ${textColorClass}`}
+            placeholder="Write your note here..."
+            style={{ overflowY: 'auto' }}
+          />
+        )}
+
+        {/* Resize handle */}
+        {!note.minimized && (
+          <div
+            className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
+            onMouseDown={handleResizeStart}
+            style={{
+              backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.2) 1px, transparent 1px)',
+              backgroundSize: '3px 3px',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+              padding: '8px',
+            }}
+          />
+        )}
+      </div>
+    </Draggable>
   );
 };

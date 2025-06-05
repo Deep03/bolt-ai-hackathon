@@ -7,6 +7,7 @@ interface NotesContextProps {
   addNote: (content: string, position: { x: number; y: number }, color?: NoteColor) => void;
   updateNote: (id: string, updates: Partial<Note>) => void;
   deleteNote: (id: string) => void;
+  deleteAllNotes: () => void;
   bringToFront: (id: string) => void;
 }
 
@@ -72,6 +73,10 @@ export const NotesProvider: React.FC<NotesProviderProps> = ({ children }) => {
     setNotes(prevNotes => prevNotes.filter(note => note.id !== id));
   };
 
+  const deleteAllNotes = () => {
+    setNotes([]);
+  };
+
   const bringToFront = (id: string) => {
     const maxZIndex = Math.max(...notes.map(note => note.zIndex));
     
@@ -85,7 +90,7 @@ export const NotesProvider: React.FC<NotesProviderProps> = ({ children }) => {
   };
 
   return (
-    <NotesContext.Provider value={{ notes, addNote, updateNote, deleteNote, bringToFront }}>
+    <NotesContext.Provider value={{ notes, addNote, updateNote, deleteNote, deleteAllNotes, bringToFront }}>
       {children}
     </NotesContext.Provider>
   );
