@@ -1,4 +1,3 @@
-import React from 'react';
 import { DndContext, DragEndEvent } from '@dnd-kit/core';
 import { NoteBoard } from './components/NoteBoard';
 import { Header } from './components/Header';

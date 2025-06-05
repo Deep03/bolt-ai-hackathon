@@ -1,14 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, {useEffect } from 'react';
 import { useNotes } from '../context/NotesContext';
 import { StickyNote } from './StickyNote';
-import { NoteFormState } from '../types';
 
 export const NoteBoard: React.FC = () => {
   const { notes, addNote } = useNotes();
-  const [noteForm, setNoteForm] = useState<NoteFormState>({
-    isOpen: false,
-    position: null
-  });
 
   // Handle keyboard shortcuts
   useEffect(() => {
